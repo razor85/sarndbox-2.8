@@ -62,7 +62,7 @@ private:
                                      // contour line generation
     GLhandleARB heightMapShader; // Shader program to render the surface using a
                                  // height color map
-    GLint heightMapShaderUniforms[16]; // Locations of the height map shader's
+    GLint heightMapShaderUniforms[17]; // Locations of the height map shader's
                                        // uniform variables
     unsigned int
       surfaceSettingsVersion; // Version number of surface settings for which
@@ -187,7 +187,7 @@ public:
     double newAnimationTime); // Sets the time for water animation in seconds
   void renderSinglePass(const int viewport[4], const PTransform &projection,
     const OGTransform &modelview,
-    GLContextData &contextData) const; // Renders the surface in a single pass
+    GLContextData &contextData, GLuint surfaceDepthTexture) const; // Renders the surface in a single pass
                                        // using the current surface settings
 #if 0
 	void renderGlobalAmbientHeightMap(GLuint heightColorMapTexture,GLContextData& contextData) const; // Renders the global ambient component of the surface as an illuminated height map in the current OpenGL context using the given pixel-corner elevation texture and 1D height color map

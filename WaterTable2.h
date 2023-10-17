@@ -77,6 +77,7 @@ private:
     GLuint
       waterTextureObject; // One-component color texture object to add or remove
                           // water to/from the conserved quantity grid
+
     GLuint
       bathymetryFramebufferObject; // Frame buffer used to render the bathymetry
                                    // surface into the bathymetry grid

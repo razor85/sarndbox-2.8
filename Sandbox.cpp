@@ -115,6 +115,9 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "Config.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 /**********************************
 Methods of class Sandbox::DataItem:
 **********************************/
@@ -150,6 +153,10 @@ Sandbox::DataItem::DataItem(void)
 
 Sandbox::DataItem::~DataItem(void) {
   /* Delete all shaders, buffers, and texture objects: */
+  if (hasSurfaceDepthTextureObject) {
+    glDeleteTextures(1, &surfaceDepthTextureObject);
+  }
+
   glDeleteFramebuffersEXT(1, &shadowFramebufferObject);
   glDeleteTextures(1, &shadowDepthTextureObject);
 }
@@ -1681,7 +1688,7 @@ void Sandbox::display(GLContextData &contextData) const {
   {
     /* Render the surface in a single pass: */
     rs.surfaceRenderer->renderSinglePass(ds.viewport, projection,
-      ds.modelviewNavigational, contextData);
+      ds.modelviewNavigational, contextData, dataItem->surfaceDepthTextureObject);
   }
 
   if (rs.waterRenderer != 0) {
@@ -1758,6 +1765,30 @@ void Sandbox::initContext(GLContextData &contextData) const {
     /* Generate the shadow rendering frame buffer: */
     glGenFramebuffersEXT(1, &dataItem->shadowFramebufferObject);
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, dataItem->shadowFramebufferObject);
+
+    {
+      dataItem->hasSurfaceDepthTextureObject = false;
+      dataItem->surfaceDepthTextureObject = 0;
+
+      int width, height, comp;
+      unsigned char *data = stbi_load("surfaceDepth.png", &width, &height, &comp, 4);
+      if (data != nullptr) {
+        glGenTextures(1, &dataItem->surfaceDepthTextureObject);
+        glBindTexture(GL_TEXTURE_2D, dataItem->surfaceDepthTextureObject);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
+          GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+        dataItem->hasSurfaceDepthTextureObject = true;
+        printf("Loaded %d,%d:%d surface depth mask\n", width, height, comp);
+      } else {
+        printf("Failed to load surface depth mask\n");
+      }
+    }
+
 
     /* Generate a depth texture for shadow rendering: */
     glGenTextures(1, &dataItem->shadowDepthTextureObject);
