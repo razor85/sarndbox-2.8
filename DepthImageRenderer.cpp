@@ -262,6 +262,9 @@ Scalar DepthImageRenderer::intersectLine(const Point &p0, const Point &p1,
 }
   
 void DepthImageRenderer::saveDepthToDisk(const char* filename) {
+  /* Get the data item: */
+  DataItem *dataItem = contextData.retrieveDataItem<DataItem>(this);
+
   /* Bind the depth image texture: */
   glActiveTextureARB(GL_TEXTURE0_ARB);
   glBindTexture(GL_TEXTURE_RECTANGLE_ARB, dataItem->depthTexture);
