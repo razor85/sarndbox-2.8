@@ -131,6 +131,9 @@ public:
   {
     return depthImageVersion;
   }
+
+  void saveDepthToDisk(const char* filename);
+
   void uploadDepthProjection(
     GLint location) const; // Uploads the depth unprojection matrix into the
                            // GLSL 4x4 matrix at the given uniform location

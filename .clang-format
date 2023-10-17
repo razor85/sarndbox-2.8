@@ -1,0 +1,27 @@
+﻿---
+AlignAfterOpenBracket: DontAlign
+AlignOperands: DontAlign
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: true
+BasedOnStyle: LLVM
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeTernaryOperators: false
+BreakBeforeBinaryOperators: false
+ColumnLimit: '80'
+ContinuationIndentWidth: 2
+Cpp11BracedListStyle: false
+ExperimentalAutoDetectBinPacking: false
+IndentCaseBlocks: true
+PenaltyBreakAssignment: 1000
+PenaltyReturnTypeOnItsOwnLine: 1000
+SpaceBeforeCpp11BracedList: false
+TabWidth: '2'
+...

@@ -253,6 +253,7 @@ private:
   DEM *activeDem;         // The currently active DEM
   GLMotif::PopupMenu *mainMenu;
   GLMotif::ToggleButton *pauseUpdatesToggle;
+  GLMotif::Button *storeDepthToDisk;
   GLMotif::PopupWindow *waterControlDialog;
   GLMotif::TextFieldSlider *waterSpeedSlider;
   GLMotif::TextFieldSlider *waterMaxStepsSlider;
@@ -274,6 +275,7 @@ private:
     const; // Function to render geometry that adds water to the water table
   void pauseUpdatesCallback(
     GLMotif::ToggleButton::ValueChangedCallbackData *cbData);
+  void saveDepthToDisk(Misc::CallbackData *cbData);
   void showWaterControlDialogCallback(Misc::CallbackData *cbData);
   void waterSpeedSliderCallback(
     GLMotif::TextFieldSlider::ValueChangedCallbackData *cbData);

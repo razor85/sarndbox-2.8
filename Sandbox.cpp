@@ -313,6 +313,9 @@ void Sandbox::pauseUpdatesCallback(
   pauseUpdates = cbData->set;
 }
 
+void Sandbox::saveDepthToDisk(Misc::CallbackData *cbData) {
+}
+
 void Sandbox::showWaterControlDialogCallback(Misc::CallbackData *cbData) {
   Vrui::popupPrimaryWidget(waterControlDialog);
 }
@@ -347,6 +350,12 @@ GLMotif::PopupMenu *Sandbox::createMainMenu(void) {
   pauseUpdatesToggle->setToggle(false);
   pauseUpdatesToggle->getValueChangedCallbacks().add(this,
     &Sandbox::pauseUpdatesCallback);
+
+  /* Create a button to store the depth image to disk: */
+  storeDepthToDisk = new GLMotif::Button("StoreDepthToDisk", mainMenu,
+    "Store Depth to Disk");
+  storeDepthToDisk->getSelectChangedCallbacks().add(this,
+    &Sandbox::saveDepthTodisk);
 
   if (waterTable != 0) {
     /* Create a button to show the water control dialog: */
