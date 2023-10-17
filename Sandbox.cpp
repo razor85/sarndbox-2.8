@@ -356,7 +356,7 @@ GLMotif::PopupMenu *Sandbox::createMainMenu(void) {
   storeDepthToDisk = new GLMotif::Button("StoreDepthToDisk", mainMenu,
     "Store Depth to Disk");
   storeDepthToDisk->getSelectCallbacks().add(this,
-    &Sandbox::saveDepthTodisk);
+    &Sandbox::saveDepthToDisk);
 
   if (waterTable != 0) {
     /* Create a button to show the water control dialog: */
