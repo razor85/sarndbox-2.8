@@ -132,11 +132,12 @@ public:
     return depthImageVersion;
   }
 
-  void saveDepthToDisk(const char* filename);
+  void saveDepthToDisk(const char *filename,
+    GLContextData &contextData)
 
-  void uploadDepthProjection(
-    GLint location) const; // Uploads the depth unprojection matrix into the
-                           // GLSL 4x4 matrix at the given uniform location
+    void uploadDepthProjection(
+      GLint location) const; // Uploads the depth unprojection matrix into the
+                             // GLSL 4x4 matrix at the given uniform location
   void bindDepthTexture(GLContextData &contextData)
     const; // Binds the up-to-date depth texture image to the currently active
            // texture unit

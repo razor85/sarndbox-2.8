@@ -314,6 +314,7 @@ void Sandbox::pauseUpdatesCallback(
 }
 
 void Sandbox::saveDepthToDisk(Misc::CallbackData *cbData) {
+  scheduledDepthSave = true;
 }
 
 void Sandbox::showWaterControlDialogCallback(Misc::CallbackData *cbData) {
@@ -450,6 +451,7 @@ GLMotif::PopupWindow *Sandbox::createWaterControlDialog(void) {
   waterAttenuationSlider->getValueChangedCallbacks().add(this,
     &Sandbox::waterAttenuationSliderCallback);
 
+  scheduledDepthSave = false;
   waterControlDialog->manageChild();
 
   return waterControlDialogPopup;
@@ -1428,6 +1430,11 @@ void Sandbox::display(GLContextData &contextData) const {
   const RenderSettings &rs = windowIndex < int(renderSettings.size()) ?
     renderSettings[windowIndex] :
     renderSettings.back();
+  
+  if (scheduledDepthSave) {
+    scheduledDepthSave = false;
+    depthImageRenderer->saveDepthToDisk("depthImage.png", contextData);
+  }
 
   /* Check if the water simulation state needs to be updated: */
   if (waterTable != 0 &&

@@ -260,8 +260,10 @@ Scalar DepthImageRenderer::intersectLine(const Point &p0, const Point &p1,
 
   return Scalar(2);
 }
-  
-void DepthImageRenderer::saveDepthToDisk(const char* filename) {
+
+void DepthImageRenderer::saveDepthToDisk(const char *filename,
+  GLContextData &contextData) {
+
   /* Get the data item: */
   DataItem *dataItem = contextData.retrieveDataItem<DataItem>(this);
 

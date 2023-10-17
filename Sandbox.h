@@ -275,7 +275,10 @@ private:
     const; // Function to render geometry that adds water to the water table
   void pauseUpdatesCallback(
     GLMotif::ToggleButton::ValueChangedCallbackData *cbData);
+
+  bool scheduledDepthSave;
   void saveDepthToDisk(Misc::CallbackData *cbData);
+
   void showWaterControlDialogCallback(Misc::CallbackData *cbData);
   void waterSpeedSliderCallback(
     GLMotif::TextFieldSlider::ValueChangedCallbackData *cbData);
