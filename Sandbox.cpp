@@ -355,7 +355,7 @@ GLMotif::PopupMenu *Sandbox::createMainMenu(void) {
   /* Create a button to store the depth image to disk: */
   storeDepthToDisk = new GLMotif::Button("StoreDepthToDisk", mainMenu,
     "Store Depth to Disk");
-  storeDepthToDisk->getSelectChangedCallbacks().add(this,
+  storeDepthToDisk->getSelectCallbacks().add(this,
     &Sandbox::saveDepthTodisk);
 
   if (waterTable != 0) {
