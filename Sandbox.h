@@ -276,7 +276,7 @@ private:
   void pauseUpdatesCallback(
     GLMotif::ToggleButton::ValueChangedCallbackData *cbData);
 
-  bool scheduledDepthSave;
+  mutable bool scheduledDepthSave;
   void saveDepthToDisk(Misc::CallbackData *cbData);
 
   void showWaterControlDialogCallback(Misc::CallbackData *cbData);
