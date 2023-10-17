@@ -293,7 +293,7 @@ void DepthImageRenderer::saveDepthToDisk(const char *filename,
     data[3] = 255;
   }
 
-  if (!stbi_write_png(filename, depthImageSize[0], depthImageSize[1], 1, textureDataRGBA, 0)) {
+  if (!stbi_write_png(filename, depthImageSize[0], depthImageSize[1], 4, textureDataRGBA, 0)) {
     printf("Failed to store depth buffer image to filename %s\n", filename);
   }
 }
