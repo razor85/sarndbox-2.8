@@ -133,7 +133,7 @@ public:
   }
 
   void saveDepthToDisk(const char *filename,
-    GLContextData &contextData)
+    GLContextData &contextData);
 
     void uploadDepthProjection(
       GLint location) const; // Uploads the depth unprojection matrix into the
