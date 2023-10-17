@@ -91,6 +91,10 @@ private:
     GLuint shadowDepthTextureObject; // Depth texture for the shadow rendering
                                      // frame buffer
 
+    // For excluding areas based on the alpha channel
+    bool hasSurfaceDepthTextureObject;
+    GLuint surfaceDepthTextureObject;
+
     /* Constructors and destructors: */
     DataItem(void);
     virtual ~DataItem(void);

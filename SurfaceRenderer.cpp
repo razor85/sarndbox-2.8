@@ -105,10 +105,13 @@ GLhandleARB SurfaceRenderer::createSinglePassSurfaceShader(
 
     std::string vertexUniforms = "\
 			uniform sampler2DRect depthSampler; // Sampler for the depth image-space elevation texture\n\
+			uniform sampler2D maskDepthSampler; // Sampler for the depth image mask texture\n\
 			uniform mat4 depthProjection; // Transformation from depth image space to camera space\n\
 			uniform mat4 projectionModelviewDepthProjection; // Transformation from depth image space to clip space\n";
 
-    std::string vertexVaryings;
+    std::string vertexVaryings = "\
+		  varying float maskDepthValue; // Mask depth for telling if pixel is visible or not\n\
+      ";
 
     /* Assemble the vertex shader's main function: */
     std::string vertexMain = "\
@@ -121,6 +124,7 @@ GLhandleARB SurfaceRenderer::createSinglePassSurfaceShader(
 				/* Transform the vertex from depth image space to camera space and normalize it: */\n\
 				vec4 vertexCc=depthProjection*vertexDic;\n\
 				vertexCc/=vertexCc.w;\n\
+				maskDepthValue = texture2D(maskDepthSampler, gl_Vertex.xy).a;\n\
 				\n";
 
     if (dem != 0) {
@@ -275,8 +279,12 @@ GLhandleARB SurfaceRenderer::createSinglePassSurfaceShader(
     std::string fragmentDeclarations;
 
     /* Assemble the fragment shader's uniform and varying variables: */
-    std::string fragmentUniforms;
-    std::string fragmentVaryings;
+    std::string fragmentUniforms = "\n\
+			uniform sampler2D maskDepthSampler; // Sampler for the depth image mask texture\n\
+      "; 
+    std::string fragmentVaryings = "\n\
+		  varying float maskDepthValue; // Mask depth for telling if pixel is visible or not\n\
+      ";
 
     /* Assemble the fragment shader's main function: */
     std::string fragmentMain = "\
@@ -393,7 +401,9 @@ GLhandleARB SurfaceRenderer::createSinglePassSurfaceShader(
     /* Finish the fragment shader's main function: */
     fragmentMain += "\
 			/* Assign the final color to the fragment: */\n\
-			gl_FragColor=baseColor;\n\
+			float test = texture2D(maskDepthSampler, gl_FragCoord.xy / vec2(1920, 1080)).a;\n\
+			// gl_FragColor=baseColor * vec4(maskDepthValue);\n\
+			gl_FragColor=baseColor * vec4(test);\n\
 			}\n";
 
     /* Compile the fragment shader: */
@@ -417,6 +427,7 @@ GLhandleARB SurfaceRenderer::createSinglePassSurfaceShader(
 
     /* Query common uniform variables: */
     *(ulPtr++) = glGetUniformLocationARB(result, "depthSampler");
+    *(ulPtr++) = glGetUniformLocationARB(result, "maskDepthSampler");
     *(ulPtr++) = glGetUniformLocationARB(result, "depthProjection");
     if (dem != 0) {
       /* Query DEM matching uniform variables: */
@@ -791,7 +802,7 @@ void SurfaceRenderer::setAnimationTime(double newAnimationTime) {
 
 void SurfaceRenderer::renderSinglePass(const int viewport[4],
   const PTransform &projection, const OGTransform &modelview,
-  GLContextData &contextData) const {
+  GLContextData &contextData, GLuint surfaceDepthTexture) const {
   /* Get the data item: */
   DataItem *dataItem = contextData.retrieveDataItem<DataItem>(this);
 
@@ -846,6 +857,11 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
   depthImageRenderer->bindDepthTexture(contextData);
   glUniform1iARB(*(ulPtr++), 0);
 
+  /* Bind the current depth mask image texture: */
+  glActiveTextureARB(GL_TEXTURE1_ARB);
+  glBindTexture(GL_TEXTURE_2D, surfaceDepthTexture);
+  glUniform1iARB(*(ulPtr++), 1);
+
   /* Upload the depth projection matrix: */
   depthImageRenderer->uploadDepthProjection(*(ulPtr++));
 
@@ -854,9 +870,9 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
     dem->uploadDemTransform(*(ulPtr++));
 
     /* Bind the DEM texture: */
-    glActiveTextureARB(GL_TEXTURE1_ARB);
+    glActiveTextureARB(GL_TEXTURE2_ARB);
     dem->bindTexture(contextData);
-    glUniform1iARB(*(ulPtr++), 1);
+    glUniform1iARB(*(ulPtr++), 2);
 
     /* Upload the DEM distance scale factor: */
     glUniform1fARB(*(ulPtr++), 1.0f / (demDistScale * dem->getVerticalScale()));
@@ -865,17 +881,17 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
     elevationColorMap->uploadTexturePlane(*(ulPtr++));
 
     /* Bind the height color map texture: */
-    glActiveTextureARB(GL_TEXTURE1_ARB);
+    glActiveTextureARB(GL_TEXTURE2_ARB);
     elevationColorMap->bindTexture(contextData);
-    glUniform1iARB(*(ulPtr++), 1);
+    glUniform1iARB(*(ulPtr++), 2);
   }
 
   if (drawContourLines) {
     /* Bind the pixel corner elevation texture: */
-    glActiveTextureARB(GL_TEXTURE2_ARB);
+    glActiveTextureARB(GL_TEXTURE3_ARB);
     glBindTexture(GL_TEXTURE_RECTANGLE_ARB,
       dataItem->contourLineColorTextureObject);
-    glUniform1iARB(*(ulPtr++), 2);
+    glUniform1iARB(*(ulPtr++), 3);
 
     /* Upload the contour line distance factor: */
     glUniform1fARB(*(ulPtr++), contourLineFactor);
@@ -920,7 +936,7 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
     waterTable->uploadWaterTextureTransform(*(ulPtr++));
 
     /* Bind the bathymetry texture: */
-    glActiveTextureARB(GL_TEXTURE3_ARB);
+    glActiveTextureARB(GL_TEXTURE4_ARB);
     waterTable->bindBathymetryTexture(contextData);
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -928,10 +944,10 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
       GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T,
       GL_CLAMP_TO_EDGE);
-    glUniform1iARB(*(ulPtr++), 3);
+    glUniform1iARB(*(ulPtr++), 4);
 
     /* Bind the quantities texture: */
-    glActiveTextureARB(GL_TEXTURE4_ARB);
+    glActiveTextureARB(GL_TEXTURE5_ARB);
     waterTable->bindQuantityTexture(contextData);
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -939,7 +955,7 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
       GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T,
       GL_CLAMP_TO_EDGE);
-    glUniform1iARB(*(ulPtr++), 4);
+    glUniform1iARB(*(ulPtr++), 5);
 
     /* Upload the water grid cell size for normal vector calculation: */
     glUniformARB<2>(*(ulPtr++), 1, waterTable->getCellSize());
@@ -963,7 +979,7 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
 
   /* Unbind all textures and buffers: */
   if (waterTable != 0 && dem == 0) {
-    glActiveTextureARB(GL_TEXTURE4_ARB);
+    glActiveTextureARB(GL_TEXTURE5_ARB);
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER,
       GL_NEAREST);
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER,
@@ -981,18 +997,20 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
     glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
   }
   if (drawContourLines) {
-    glActiveTextureARB(GL_TEXTURE2_ARB);
+    glActiveTextureARB(GL_TEXTURE3_ARB);
     glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
   }
   if (dem != 0) {
-    glActiveTextureARB(GL_TEXTURE1_ARB);
+    glActiveTextureARB(GL_TEXTURE2_ARB);
     glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
   } else if (elevationColorMap != 0) {
-    glActiveTextureARB(GL_TEXTURE1_ARB);
+    glActiveTextureARB(GL_TEXTURE2_ARB);
     glBindTexture(GL_TEXTURE_1D, 0);
   }
   glActiveTextureARB(GL_TEXTURE0_ARB);
   glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
+  glActiveTextureARB(GL_TEXTURE1_ARB);
+  glBindTexture(GL_TEXTURE_2D, 0);
 
   /* Unbind the height map shader: */
   glUseProgramObjectARB(0);
