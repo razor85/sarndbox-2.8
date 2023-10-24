@@ -62,7 +62,7 @@ private:
                                      // contour line generation
     GLhandleARB heightMapShader; // Shader program to render the surface using a
                                  // height color map
-    GLint heightMapShaderUniforms[17]; // Locations of the height map shader's
+    GLint heightMapShaderUniforms[16]; // Locations of the height map shader's
                                        // uniform variables
     unsigned int
       surfaceSettingsVersion; // Version number of surface settings for which
@@ -85,6 +85,8 @@ private:
     GLint shadowedIlluminatedHeightMapShaderUniforms
       [14]; // Locations of the shadowed illuminated height map shader's uniform
             // variables
+
+    GLint depthMaskUniform[2];
 
     /* Constructors and destructors: */
     DataItem(void);
@@ -137,7 +139,8 @@ private:
       &event); // Callback called when one of the external shader source files
                // is changed
   GLhandleARB createSinglePassSurfaceShader(const GLLightTracker &lt,
-    GLint *uniformLocations) const; // Creates a single-pass surface rendering
+    GLint *uniformLocations,
+    GLint *depthMaskUniform) const; // Creates a single-pass surface rendering
                                     // shader based on current renderer settings
   void renderPixelCornerElevations(const int viewport[4],
     const PTransform &projectionModelview, GLContextData &contextData,
@@ -186,9 +189,9 @@ public:
   void setAnimationTime(
     double newAnimationTime); // Sets the time for water animation in seconds
   void renderSinglePass(const int viewport[4], const PTransform &projection,
-    const OGTransform &modelview,
-    GLContextData &contextData, GLuint surfaceDepthTexture) const; // Renders the surface in a single pass
-                                       // using the current surface settings
+    const OGTransform &modelview, GLContextData &contextData,
+    GLuint &surfaceDepthTexture) const; // Renders the surface in a single pass
+                                        // using the current surface settings
 #if 0
 	void renderGlobalAmbientHeightMap(GLuint heightColorMapTexture,GLContextData& contextData) const; // Renders the global ambient component of the surface as an illuminated height map in the current OpenGL context using the given pixel-corner elevation texture and 1D height color map
 	void renderShadowedIlluminatedHeightMap(GLuint heightColorMapTexture,GLuint shadowTexture,const PTransform& shadowProjection,GLContextData& contextData) const; // Renders the surface as an illuminated height map in the current OpenGL context using the given pixel-corner elevation texture and 1D height color map
