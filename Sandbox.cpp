@@ -155,6 +155,8 @@ Sandbox::DataItem::~DataItem(void) {
   /* Delete all shaders, buffers, and texture objects: */
   if (hasSurfaceDepthTextureObject) {
     glDeleteTextures(1, &surfaceDepthTextureObject);
+    surfaceDepthTextureObject = 0;
+    hasSurfaceDepthTextureObject = false;
   }
 
   glDeleteFramebuffersEXT(1, &shadowFramebufferObject);
@@ -621,9 +623,9 @@ Sandbox::Sandbox(int &argc, char **&argv)
       pixelDepthCorrection(0), frameFilter(0), pauseUpdates(false),
       depthImageRenderer(0), waterTable(0), handExtractor(0),
       addWaterFunction(0), addWaterFunctionRegistered(false), sun(0),
-      activeDem(0), mainMenu(0), pauseUpdatesToggle(0), waterControlDialog(0),
-      waterSpeedSlider(0), waterMaxStepsSlider(0), frameRateTextField(0),
-      waterAttenuationSlider(0), controlPipeFd(-1) {
+      activeDem(0), mainMenu(0), pauseUpdatesToggle(0), storeDepthToDisk(0),
+      waterControlDialog(0), waterSpeedSlider(0), waterMaxStepsSlider(0),
+      frameRateTextField(0), waterAttenuationSlider(0), controlPipeFd(-1) {
   /* Read the sandbox's default configuration parameters: */
   std::string sandboxConfigFileName = CONFIG_CONFIGDIR;
   sandboxConfigFileName.push_back('/');
@@ -1753,18 +1755,6 @@ void Sandbox::initContext(GLContextData &contextData) const {
   DataItem *dataItem = new DataItem;
   contextData.addDataItem(this, dataItem);
 
-  {
-    /* Save the currently bound frame buffer: */
-    GLint currentFrameBuffer;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &currentFrameBuffer);
-
-    /* Set the default shadow buffer size: */
-    dataItem->shadowBufferSize[0] = 1024;
-    dataItem->shadowBufferSize[1] = 1024;
-
-    /* Generate the shadow rendering frame buffer: */
-    glGenFramebuffersEXT(1, &dataItem->shadowFramebufferObject);
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, dataItem->shadowFramebufferObject);
 
     {
       dataItem->hasSurfaceDepthTextureObject = false;
@@ -1790,6 +1780,20 @@ void Sandbox::initContext(GLContextData &contextData) const {
         printf("Failed to load surface depth mask\n");
       }
     }
+
+
+  {
+    /* Save the currently bound frame buffer: */
+    GLint currentFrameBuffer;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &currentFrameBuffer);
+
+    /* Set the default shadow buffer size: */
+    dataItem->shadowBufferSize[0] = 1024;
+    dataItem->shadowBufferSize[1] = 1024;
+
+    /* Generate the shadow rendering frame buffer: */
+    glGenFramebuffersEXT(1, &dataItem->shadowFramebufferObject);
+    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, dataItem->shadowFramebufferObject);
 
     /* Generate a depth texture for shadow rendering: */
     glGenTextures(1, &dataItem->shadowDepthTextureObject);

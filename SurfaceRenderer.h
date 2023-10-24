@@ -86,7 +86,7 @@ private:
       [14]; // Locations of the shadowed illuminated height map shader's uniform
             // variables
 
-    GLint depthMaskUniform;
+    GLint depthMaskUniform[2];
 
     /* Constructors and destructors: */
     DataItem(void);

@@ -49,6 +49,9 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include "ShaderHelper.h"
 #include "WaterTable2.h"
 
+
+constexpr bool RenderDepthMask{ true };
+
 /******************************************
 Methods of class SurfaceRenderer::DataItem:
 ******************************************/
@@ -276,9 +279,14 @@ GLhandleARB SurfaceRenderer::createSinglePassSurfaceShader(
     std::string fragmentDeclarations;
 
     /* Assemble the fragment shader's uniform and varying variables: */
-    std::string fragmentUniforms = "\n\
+    std::string fragmentUniforms;
+    if constexpr (RenderDepthMask) {
+     fragmentUniforms += "\n\
 			uniform sampler2D maskDepthSampler; // Sampler for the depth image mask texture\n\
+			uniform vec2 maskDepthViewport;     // Viewport dimensions for this sampler\n\
       ";
+    }
+
     std::string fragmentVaryings;
 
     /* Assemble the fragment shader's main function: */
@@ -394,11 +402,18 @@ GLhandleARB SurfaceRenderer::createSinglePassSurfaceShader(
     }
 
     /* Finish the fragment shader's main function: */
-    fragmentMain += "\
-			/* Assign the final color to the fragment: */\n\
-			float maskValue = texture2D(maskDepthSampler, gl_FragCoord.xy / vec2(1920, 1080)).a;\n\
-			gl_FragColor=baseColor * vec4(maskValue);\n\
-			}\n";
+    if constexpr (RenderDepthMask) {
+      fragmentMain += "\
+  			/* Assign the final color to the fragment: */\n\
+  			float maskValue = texture2D(maskDepthSampler, gl_FragCoord.xy / maskDepthViewport.xy).a;\n\
+  			gl_FragColor = baseColor * vec4(maskValue);\n\
+  			}\n";
+    } else {
+      fragmentMain += "\
+  			/* Assign the final color to the fragment: */\n\
+  			gl_FragColor = baseColor;\n\
+  			}\n";
+    }
 
     /* Compile the fragment shader: */
     shaders.push_back(glCompileFragmentShaderFromStrings(7,
@@ -461,7 +476,12 @@ GLhandleARB SurfaceRenderer::createSinglePassSurfaceShader(
     }
     *(ulPtr++) = glGetUniformLocationARB(result,
       "projectionModelviewDepthProjection");
-    *depthMaskUniform = glGetUniformLocationARB(result, "maskDepthSampler");
+
+    if constexpr (RenderDepthMask) {
+      depthMaskUniform[0] = glGetUniformLocationARB(result, "maskDepthSampler");
+      depthMaskUniform[1] = glGetUniformLocationARB(result,
+        "maskDepthViewport");
+    }
 
   } catch (...) {
     /* Clean up and re-throw the exception: */
@@ -624,7 +644,7 @@ void SurfaceRenderer::initContext(GLContextData &contextData) const {
   /* Create the height map render shader: */
   dataItem->heightMapShader = createSinglePassSurfaceShader(
     *contextData.getLightTracker(), dataItem->heightMapShaderUniforms,
-    &dataItem->depthMaskUniform);
+    dataItem->depthMaskUniform);
   dataItem->surfaceSettingsVersion = surfaceSettingsVersion;
   dataItem->lightTrackerVersion = contextData.getLightTracker()->getVersion();
 
@@ -816,7 +836,7 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
     /* Delete the contour line rendering frame buffer: */
     glDeleteFramebuffersEXT(1, &dataItem->contourLineFramebufferObject);
     dataItem->contourLineFramebufferObject = 0;
-    glDeleteRenderbuffersEXT(1, &dataItem->contourLineDepthBufferObject);
+    glDeleteRenderbuffersEXT(0, &dataItem->contourLineDepthBufferObject);
     dataItem->contourLineDepthBufferObject = 0;
     glDeleteTextures(1, &dataItem->contourLineColorTextureObject);
     dataItem->contourLineColorTextureObject = 0;
@@ -831,7 +851,7 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
     try {
       GLhandleARB newShader = createSinglePassSurfaceShader(
         *contextData.getLightTracker(), dataItem->heightMapShaderUniforms,
-        &dataItem->depthMaskUniform);
+        dataItem->depthMaskUniform);
       glDeleteObjectARB(dataItem->heightMapShader);
       dataItem->heightMapShader = newShader;
     } catch (const std::runtime_error &err) {
@@ -848,6 +868,15 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
   /* Bind the single-pass surface shader: */
   glUseProgramObjectARB(dataItem->heightMapShader);
   const GLint *ulPtr = dataItem->heightMapShaderUniforms;
+
+  /* Bind the current depth mask image texture: */
+  if constexpr (RenderDepthMask) {
+    glActiveTextureARB(GL_TEXTURE5_ARB);
+    glBindTexture(GL_TEXTURE_2D, surfaceDepthTexture);
+    glUniform1iARB(dataItem->depthMaskUniform[0], 5);
+    glUniform2fARB(dataItem->depthMaskUniform[1],
+      static_cast<float>(viewport[2]), static_cast<float>(viewport[3]));
+  }
 
   /* Bind the current depth image texture: */
   glActiveTextureARB(GL_TEXTURE0_ARB);
@@ -966,11 +995,6 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
                                           ->getDepthProjection();
   glUniformARB(*(ulPtr++), projectionModelviewDepthProjection);
 
-  /* Bind the current depth mask image texture: */
-  glActiveTextureARB(GL_TEXTURE5_ARB);
-  glBindTexture(GL_TEXTURE_2D, surfaceDepthTexture);
-  glUniform1iARB(dataItem->depthMaskUniform, 5);
-
   /* Draw the surface: */
   depthImageRenderer->renderSurfaceTemplate(contextData);
 
@@ -1006,8 +1030,14 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
   }
   glActiveTextureARB(GL_TEXTURE0_ARB);
   glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
-  glActiveTextureARB(GL_TEXTURE5_ARB);
-  glBindTexture(GL_TEXTURE_2D, 0);
+
+  if constexpr (RenderDepthMask) {
+    glActiveTextureARB(GL_TEXTURE5_ARB);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // We need to restore the original buffer, otherwise Vrui rendering breaks.
+    glActiveTextureARB(GL_TEXTURE0_ARB);
+  }
 
   /* Unbind the height map shader: */
   glUseProgramObjectARB(0);

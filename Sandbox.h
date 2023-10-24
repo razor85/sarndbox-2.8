@@ -92,8 +92,8 @@ private:
                                      // frame buffer
 
     // For excluding areas based on the alpha channel
-    bool hasSurfaceDepthTextureObject;
-    GLuint surfaceDepthTextureObject;
+    bool hasSurfaceDepthTextureObject{ false };
+    GLuint surfaceDepthTextureObject{ 0 };
 
     /* Constructors and destructors: */
     DataItem(void);
