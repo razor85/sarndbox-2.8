@@ -275,25 +275,27 @@ void DepthImageRenderer::saveDepthToDisk(const char *filename,
   float textureData[textureSize];
   memset(textureData, 0, textureSize * sizeof(float));
 
-  glGetTexImage(GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE, GL_FLOAT, textureData);
-  
+  glGetTexImage(GL_TEXTURE_RECTANGLE_ARB, 0, GL_LUMINANCE, GL_FLOAT,
+    textureData);
+
   uint32_t textureDataRGBA[textureSize];
   memset(textureDataRGBA, 0, textureSize * sizeof(uint32_t));
 
   for (int i = 0; i < textureSize; ++i) {
     // TODO: Figure the exact depth precision.
-    uint8_t* data = reinterpret_cast<uint8_t*>(&textureDataRGBA[i]);
-    
+    uint8_t *data = reinterpret_cast<uint8_t *>(&textureDataRGBA[i]);
+
     uint8_t valueByte = static_cast<uint8_t>(textureData[i] * 255.0f);
-    
+
     // RGB
     data[0] = data[1] = data[2] = valueByte;
-    
+
     // A
     data[3] = 255;
   }
 
-  if (!stbi_write_png(filename, depthImageSize[0], depthImageSize[1], 4, textureDataRGBA, 0)) {
+  if (!stbi_write_png(filename, depthImageSize[0], depthImageSize[1], 4,
+        textureDataRGBA, 0)) {
     printf("Failed to store depth buffer image to filename %s\n", filename);
   }
 }

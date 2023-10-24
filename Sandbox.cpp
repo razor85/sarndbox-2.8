@@ -362,8 +362,7 @@ GLMotif::PopupMenu *Sandbox::createMainMenu(void) {
   /* Create a button to store the depth image to disk: */
   storeDepthToDisk = new GLMotif::Button("StoreDepthToDisk", mainMenu,
     "Store Depth to Disk");
-  storeDepthToDisk->getSelectCallbacks().add(this,
-    &Sandbox::saveDepthToDisk);
+  storeDepthToDisk->getSelectCallbacks().add(this, &Sandbox::saveDepthToDisk);
 
   if (waterTable != 0) {
     /* Create a button to show the water control dialog: */
@@ -1437,7 +1436,7 @@ void Sandbox::display(GLContextData &contextData) const {
   const RenderSettings &rs = windowIndex < int(renderSettings.size()) ?
     renderSettings[windowIndex] :
     renderSettings.back();
-  
+
   if (scheduledDepthSave) {
     scheduledDepthSave = false;
     depthImageRenderer->saveDepthToDisk("depthImage.png", contextData);
@@ -1688,7 +1687,8 @@ void Sandbox::display(GLContextData &contextData) const {
   {
     /* Render the surface in a single pass: */
     rs.surfaceRenderer->renderSinglePass(ds.viewport, projection,
-      ds.modelviewNavigational, contextData, dataItem->surfaceDepthTextureObject);
+      ds.modelviewNavigational, contextData,
+      dataItem->surfaceDepthTextureObject);
   }
 
   if (rs.waterRenderer != 0) {
@@ -1771,7 +1771,8 @@ void Sandbox::initContext(GLContextData &contextData) const {
       dataItem->surfaceDepthTextureObject = 0;
 
       int width, height, comp;
-      unsigned char *data = stbi_load("surfaceDepth.png", &width, &height, &comp, 4);
+      unsigned char *data = stbi_load("surfaceDepth.png", &width, &height,
+        &comp, 4);
       if (data != nullptr) {
         glGenTextures(1, &dataItem->surfaceDepthTextureObject);
         glBindTexture(GL_TEXTURE_2D, dataItem->surfaceDepthTextureObject);
@@ -1779,16 +1780,16 @@ void Sandbox::initContext(GLContextData &contextData) const {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
-          GL_RGBA, GL_UNSIGNED_BYTE, data);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+          GL_UNSIGNED_BYTE, data);
 
         dataItem->hasSurfaceDepthTextureObject = true;
         printf("Loaded %d,%d:%d surface depth mask\n", width, height, comp);
+        glBindTexture(GL_TEXTURE_2D, 0);
       } else {
         printf("Failed to load surface depth mask\n");
       }
     }
-
 
     /* Generate a depth texture for shadow rendering: */
     glGenTextures(1, &dataItem->shadowDepthTextureObject);
