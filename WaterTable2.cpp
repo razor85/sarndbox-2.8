@@ -50,6 +50,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 namespace {
 
+constexpr bool WaterBoundaryUsesDepthMask{ false };
+
 /****************
 Helper functions:
 ****************/
@@ -973,7 +975,7 @@ void WaterTable2::setWaterLevel(const GLfloat *waterGrid,
 }
 
 GLfloat WaterTable2::runSimulationStep(bool forceStepSize,
-  GLContextData &contextData) const {
+  GLContextData &contextData, GLuint& depthMaskTexture) const {
   /* Get the data item: */
   DataItem *dataItem = contextData.retrieveDataItem<DataItem>(this);
 
@@ -1067,17 +1069,66 @@ GLfloat WaterTable2::runSimulationStep(bool forceStepSize,
     glActiveTextureARB(GL_TEXTURE0_ARB);
     glBindTexture(GL_TEXTURE_RECTANGLE_ARB,
       dataItem->bathymetryTextureObjects[dataItem->currentBathymetry]);
+
+    if constexpr (WaterBoundaryUsesDepthMask) {
+      glActiveTextureARB(GL_TEXTURE1_ARB);
+      glBindTexture(GL_TEXTURE_2D, depthMaskTexture);
+      glActiveTextureARB(GL_TEXTURE2_ARB);
+      glBindTexture(GL_TEXTURE_RECTANGLE_ARB,
+        dataItem->quantityTextureObjects[dataItem->currentQuantity]);
+
+      if (dataItem->depthMaskUniformLocations[0] == 0) {
+        dataItem->depthMaskUniformLocations[0] = glGetUniformLocationARB(
+          dataItem->boundaryShader, "depthMask");
+      }
+
+      if (dataItem->depthMaskUniformLocations[1] == 0) {
+        dataItem->depthMaskUniformLocations[1] = glGetUniformLocationARB(
+          dataItem->boundaryShader, "useDepthMask");
+      }
+
+      if (dataItem->depthMaskUniformLocations[2] == 0) {
+        dataItem->depthMaskUniformLocations[2] = glGetUniformLocationARB(
+          dataItem->boundaryShader, "viewportSize");
+      }
+
+      if (dataItem->depthMaskUniformLocations[3] == 0) {
+        dataItem->depthMaskUniformLocations[3] = glGetUniformLocationARB(
+          dataItem->boundaryShader, "originalValues");
+      }
+      
+      glUniform1iARB(dataItem->depthMaskUniformLocations[0], 1);
+      glUniform1iARB(dataItem->depthMaskUniformLocations[1], true);
+      glUniform2fARB(dataItem->depthMaskUniformLocations[2], GLfloat(size[0]), GLfloat(size[1]));
+      glUniform1iARB(dataItem->depthMaskUniformLocations[3], 2);
+    }
+
     glUniform1iARB(dataItem->boundaryShaderUniformLocations[0], 0);
 
-    /* Run the boundary condition shader on the outermost layer of pixels: */
-    // glColorMask(GL_TRUE,GL_FALSE,GL_FALSE,GL_FALSE);
-    glBegin(GL_LINE_LOOP);
-    glVertex2f(0.5f, 0.5f);
-    glVertex2f(GLfloat(size[0]) - 0.5f, 0.5f);
-    glVertex2f(GLfloat(size[0]) - 0.5f, GLfloat(size[1]) - 0.5f);
-    glVertex2f(0.5f, GLfloat(size[1]) - 0.5f);
-    glEnd();
-    // glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+    if constexpr (WaterBoundaryUsesDepthMask) {
+      glBegin(GL_QUADS);
+      glVertex2f(0, 0);
+      glVertex2f(GLfloat(size[0]), 0);
+      glVertex2f(GLfloat(size[0]), GLfloat(size[1]));
+      glVertex2f(0, GLfloat(size[1]));
+      glEnd();
+
+      glActiveTextureARB(GL_TEXTURE1_ARB);
+      glBindTexture(GL_TEXTURE_2D, 0);
+      glActiveTextureARB(GL_TEXTURE2_ARB);
+      glBindTexture(GL_TEXTURE_RECTANGLE_ARB, 0);
+      glActiveTextureARB(GL_TEXTURE0_ARB);
+    } else {
+      /* Run the boundary condition shader on the outermost layer of pixels: */
+      // glColorMask(GL_TRUE,GL_FALSE,GL_FALSE,GL_FALSE);
+      glBegin(GL_LINE_LOOP);
+      glVertex2f(0.5f, 0.5f);
+      glVertex2f(GLfloat(size[0]) - 0.5f, 0.5f);
+      glVertex2f(GLfloat(size[0]) - 0.5f, GLfloat(size[1]) - 0.5f);
+      glVertex2f(0.5f, GLfloat(size[1]) - 0.5f);
+      glEnd();
+      // glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+    }
   }
 
   /* Update the current quantities: */

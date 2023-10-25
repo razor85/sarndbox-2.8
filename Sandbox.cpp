@@ -1472,7 +1472,8 @@ void Sandbox::display(GLContextData &contextData) const {
     while (numSteps < waterMaxSteps - 1U && totalTimeStep > 1.0e-8f) {
       /* Run with a self-determined time step to maintain stability: */
       waterTable->setMaxStepSize(totalTimeStep);
-      GLfloat timeStep = waterTable->runSimulationStep(false, contextData);
+      GLfloat timeStep = waterTable->runSimulationStep(false, contextData,
+        dataItem->surfaceDepthTextureObject);
       totalTimeStep -= timeStep;
       ++numSteps;
     }
@@ -1482,7 +1483,7 @@ void Sandbox::display(GLContextData &contextData) const {
 			std::cout<<'.'<<std::flush;
 			/* Force the final step to avoid simulation slow-down: */
 			waterTable->setMaxStepSize(totalTimeStep);
-			GLfloat timeStep=waterTable->runSimulationStep(true,contextData);
+			GLfloat timeStep=waterTable->runSimulationStep(true,contextData,dataItem->surfaceDepthTextureObject);
 			totalTimeStep-=timeStep;
 			++numSteps;
 			}
