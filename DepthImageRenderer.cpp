@@ -262,9 +262,9 @@ Scalar DepthImageRenderer::intersectLine(const Point &p0, const Point &p1,
 }
 
 void DepthImageRenderer::saveDepthToDisk(const char *filename,
+  /* Get the data item: */
   GLContextData &contextData) {
 
-  /* Get the data item: */
   DataItem *dataItem = contextData.retrieveDataItem<DataItem>(this);
 
   /* Bind the depth image texture: */
@@ -294,6 +294,7 @@ void DepthImageRenderer::saveDepthToDisk(const char *filename,
     data[3] = 255;
   }
 
+  stbi_flip_vertically_on_write(true);
   if (!stbi_write_png(filename, depthImageSize[0], depthImageSize[1], 4,
         textureDataRGBA, 0)) {
     printf("Failed to store depth buffer image to filename %s\n", filename);

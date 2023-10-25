@@ -870,7 +870,7 @@ void SurfaceRenderer::renderSinglePass(const int viewport[4],
   const GLint *ulPtr = dataItem->heightMapShaderUniforms;
 
   /* Bind the current depth mask image texture: */
-  if constexpr (RenderDepthMask) {
+  if (RenderDepthMask && surfaceDepthTexture != 0) {
     glActiveTextureARB(GL_TEXTURE5_ARB);
     glBindTexture(GL_TEXTURE_2D, surfaceDepthTexture);
     glUniform1iARB(dataItem->depthMaskUniform[0], 5);
