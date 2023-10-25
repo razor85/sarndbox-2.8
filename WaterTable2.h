@@ -116,6 +116,9 @@ private:
                              // quantities grid
     GLint waterShaderUniformLocations[3];
 
+    // Uniform locations for the dry shader
+    GLint depthMaskUniformLocations[4] = { 0, 0, 0, 0 };
+
     /* Constructors and destructors: */
     DataItem(void);
     virtual ~DataItem(void);
@@ -247,7 +250,8 @@ public:
   void setWaterLevel(const GLfloat *waterGrid, GLContextData &contextData)
     const; // Sets the current water level to the given grid, and resets flux
            // components to zero
-  GLfloat runSimulationStep(bool forceStepSize, GLContextData &contextData)
+  GLfloat runSimulationStep(bool forceStepSize, GLContextData &contextData,
+    GLuint &depthMaskTexture)
     const; // Runs a water flow simulation step, always uses maxStepSize if flag
            // is true (may lead to instability); returns step size taken by
            // Runge-Kutta integration step
