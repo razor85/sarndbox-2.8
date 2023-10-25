@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include <Comm/OpenPipe.h>
 #include <GL/Extensions/GLARBDepthTexture.h>
+#include <GL/Extensions/GLARBDrawBuffers.h>
 #include <GL/Extensions/GLARBFragmentShader.h>
 #include <GL/Extensions/GLARBMultitexture.h>
 #include <GL/Extensions/GLARBShaderObjects.h>
@@ -117,6 +118,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "stb_image_write.h"
 
 /**********************************
 Methods of class Sandbox::DataItem:
@@ -141,6 +143,7 @@ Sandbox::DataItem::DataItem(void)
 
   /* Initialize all required extensions: */
   GLEXTFramebufferObject::initExtension();
+  GLARBDrawBuffers::initExtension();
   GLARBTextureRectangle::initExtension();
   GLARBTextureFloat::initExtension();
   GLARBTextureRg::initExtension();
@@ -156,6 +159,8 @@ Sandbox::DataItem::~DataItem(void) {
   if (hasSurfaceDepthTextureObject) {
     glDeleteTextures(1, &surfaceDepthTextureObject);
     surfaceDepthTextureObject = 0;
+    surfaceDepthTextureSize[0] = 0;
+    surfaceDepthTextureSize[1] = 0;
     hasSurfaceDepthTextureObject = false;
   }
 
@@ -1440,7 +1445,6 @@ void Sandbox::display(GLContextData &contextData) const {
     renderSettings.back();
 
   if (scheduledDepthSave) {
-    scheduledDepthSave = false;
     depthImageRenderer->saveDepthToDisk("depthImage.png", contextData);
   }
 
@@ -1692,6 +1696,94 @@ void Sandbox::display(GLContextData &contextData) const {
       ds.modelviewNavigational, contextData,
       dataItem->surfaceDepthTextureObject);
   }
+  
+  if (scheduledDepthSave) {
+    scheduledDepthSave = false;
+
+    GLint currentFrameBuffer;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &currentFrameBuffer);
+
+    const Vrui::DisplayState &ds = Vrui::getDisplayState(contextData);
+    const int width = dataItem->surfaceDepthTextureSize[0];
+    const int height = dataItem->surfaceDepthTextureSize[1];
+
+    if (!dataItem->framebufferMaskValid) {
+      dataItem->framebufferMaskValid = true;
+
+      glGenFramebuffersEXT(1, &dataItem->framebufferMaskObject);
+      glGenTextures(1, &dataItem->framebufferTextureObject);
+      glGenRenderbuffersEXT(1, &dataItem->framebufferDepthBufferObject);
+      
+      glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, dataItem->framebufferMaskObject);
+      glActiveTextureARB(GL_TEXTURE0_ARB);
+      glBindTexture(GL_TEXTURE_2D, dataItem->framebufferTextureObject);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+        GL_UNSIGNED_BYTE, nullptr);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glBindTexture(GL_TEXTURE_2D, 0);
+
+      glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0,
+        GL_TEXTURE_2D, dataItem->framebufferTextureObject, 0);
+
+      glBindRenderbufferEXT(GL_RENDERBUFFER_EXT,
+        dataItem->framebufferDepthBufferObject);
+      glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_DEPTH_COMPONENT24, width,
+        height);
+      glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT,
+        GL_RENDERBUFFER_EXT, dataItem->framebufferDepthBufferObject);
+
+      auto framebufferStatus = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+      if (framebufferStatus != GL_FRAMEBUFFER_COMPLETE) {
+        printf("Failed to set mask target framebuffer (%dx%d): %d\n", width,
+          height, framebufferStatus);
+      } else {
+        printf("Created mask framebuffer %d,%d\n", width, height);
+      }
+
+      glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, currentFrameBuffer);
+      glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, 0);
+    }
+
+    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, dataItem->framebufferMaskObject);
+    glViewport(0, 0, ds.viewport[2] + 1, ds.viewport[3] + 1);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    GLuint depthTextureSkipValue = 0;
+    rs.surfaceRenderer->renderSinglePass(ds.viewport, projection,
+      ds.modelviewNavigational, contextData, depthTextureSkipValue);
+
+    if (rs.waterRenderer != 0) {
+      /* Draw the water surface: */
+      glMaterialAmbientAndDiffuse(GLMaterialEnums::FRONT,
+        GLColor<GLfloat, 4>(0.0f, 0.5f, 0.8f));
+      glMaterialSpecular(GLMaterialEnums::FRONT,
+        GLColor<GLfloat, 4>(1.0f, 1.0f, 1.0f));
+      glMaterialShininess(GLMaterialEnums::FRONT, 64.0f);
+      glEnable(GL_BLEND);
+      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+      rs.waterRenderer->render(projection, ds.modelviewNavigational, contextData);
+      glDisable(GL_BLEND);
+    }
+    
+    const size_t textureSize = width * height;
+    uint8_t textureData[textureSize * 4] = {};
+
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadBuffer(GL_FRONT);
+    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, textureData);
+    glGetError(); // Fake skip error as long as it works
+
+    stbi_flip_vertically_on_write(true);
+    if (!stbi_write_png("colorMask.png", width, height, 4, textureData, 0)) {
+      printf("Failed to store depth buffer image to filename colorMask.png\n");
+    }
+    
+    glActiveTextureARB(GL_TEXTURE0_ARB);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, currentFrameBuffer);
+  }
 
   if (rs.waterRenderer != 0) {
     /* Draw the water surface: */
@@ -1755,32 +1847,34 @@ void Sandbox::initContext(GLContextData &contextData) const {
   DataItem *dataItem = new DataItem;
   contextData.addDataItem(this, dataItem);
 
+  // Depth mask and formats
+  {
+    dataItem->hasSurfaceDepthTextureObject = false;
+    dataItem->surfaceDepthTextureObject = 0;
+    
+    stbi_set_flip_vertically_on_load(true);
 
-    {
-      dataItem->hasSurfaceDepthTextureObject = false;
-      dataItem->surfaceDepthTextureObject = 0;
+    int width, height, comp;
+    auto *data = stbi_load("surfaceDepth.png", &width, &height, &comp, 4);
+    if (data != nullptr) {
+      glGenTextures(1, &dataItem->surfaceDepthTextureObject);
+      glBindTexture(GL_TEXTURE_2D, dataItem->surfaceDepthTextureObject);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+        GL_UNSIGNED_BYTE, data);
 
-      int width, height, comp;
-      unsigned char *data = stbi_load("surfaceDepth.png", &width, &height,
-        &comp, 4);
-      if (data != nullptr) {
-        glGenTextures(1, &dataItem->surfaceDepthTextureObject);
-        glBindTexture(GL_TEXTURE_2D, dataItem->surfaceDepthTextureObject);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
-          GL_UNSIGNED_BYTE, data);
-
-        dataItem->hasSurfaceDepthTextureObject = true;
-        printf("Loaded %d,%d:%d surface depth mask\n", width, height, comp);
-        glBindTexture(GL_TEXTURE_2D, 0);
-      } else {
-        printf("Failed to load surface depth mask\n");
-      }
+      dataItem->hasSurfaceDepthTextureObject = true;
+      dataItem->surfaceDepthTextureSize[0] = width;
+      dataItem->surfaceDepthTextureSize[1] = height;
+      printf("Loaded %d,%d:%d surface depth mask\n", width, height, comp);
+      glBindTexture(GL_TEXTURE_2D, 0);
+    } else {
+      printf("Failed to load surface depth mask\n");
     }
-
+  }
 
   {
     /* Save the currently bound frame buffer: */

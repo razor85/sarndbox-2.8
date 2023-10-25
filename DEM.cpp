@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include "DEM.h"
 
 #include <GL/Extensions/GLARBShaderObjects.h>
+#include <GL/Extensions/GLARBDrawBuffers.h>
 #include <GL/Extensions/GLARBTextureFloat.h>
 #include <GL/Extensions/GLARBTextureRectangle.h>
 #include <GL/Extensions/GLARBTextureRg.h>
@@ -42,6 +43,7 @@ DEM::DataItem::DataItem(void) : textureObjectId(0) {
   GLARBTextureRectangle::initExtension();
   GLARBTextureRg::initExtension();
   GLARBShaderObjects::initExtension();
+  GLARBDrawBuffers::initExtension();
 
   /* Create the texture object: */
   glGenTextures(1, &textureObjectId);
