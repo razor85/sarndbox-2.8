@@ -1705,8 +1705,8 @@ void Sandbox::display(GLContextData &contextData) const {
     glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &currentFrameBuffer);
 
     const Vrui::DisplayState &ds = Vrui::getDisplayState(contextData);
-    const int width = dataItem->surfaceDepthTextureSize[0];
-    const int height = dataItem->surfaceDepthTextureSize[1];
+    const int width = ds.viewport[2];
+    const int height = ds.viewport[3];
 
     if (!dataItem->framebufferMaskValid) {
       dataItem->framebufferMaskValid = true;
